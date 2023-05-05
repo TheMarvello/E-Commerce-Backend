@@ -7,7 +7,7 @@ export const createProductController = async(req, res) => {
         const { name, description, price, category, quantity, shipping } =
         req.fields;
         const { photo } = req.files;
-        //alidation
+        //validation
         switch (true) {
             case !name:
                 return res.status(500).send({ error: "Name is Required" });
@@ -41,7 +41,7 @@ export const createProductController = async(req, res) => {
         res.status(500).send({
             success: false,
             error,
-            message: "Error in crearing product",
+            message: "Error in creating product",
         });
     }
 };
@@ -170,7 +170,97 @@ export const updateProductController = async(req, res) => {
         res.status(500).send({
             success: false,
             error,
-            message: "Error in Updte product",
+            message: "Error in Update product",
+        });
+    }
+};
+
+//FILTERS
+export const productFiltersController = async(req, res) => {
+    try {
+
+        const { checked, radio } = req.body;
+        let args = {};
+        if (checked.length > 0) args.category = checked;
+        if (radio.length) args.price = { $gte: radio[0], $lte: radio[1] };
+        const products = await productModel.find(args);
+        res.status(200).send({
+            success: true,
+            products,
+        });
+
+    } catch (error) {
+        console.log(error);
+        res.status(400).send({
+            success: false,
+            message: "error while filtering products",
+            error,
+        })
+    }
+}
+
+//product count
+export const productCountController = async(req, res) => {
+    try {
+        const total = await productModel.find({}).estimatedDocumentCount();
+        res.status(200).send({
+            success: true,
+            total,
+        })
+    } catch (error) {
+        console.log(error);
+        res.status(400).send({
+            message: "error in product count",
+            error,
+            success: false,
+        })
+    }
+}
+
+// product list base on page
+export const productListController = async(req, res) => {
+    try {
+        const perPage = 3;
+        const page = req.params.page ? req.params.page : 1;
+        const products = await productModel
+            .find({})
+            .select("-photo")
+            .skip((page - 1) * perPage)
+            .limit(perPage)
+            .sort({ createdAt: -1 });
+        res.status(200).send({
+            success: true,
+            products,
+        });
+    } catch (error) {
+        console.log(error);
+        res.status(400).send({
+            success: false,
+            message: "error in per page ctrl",
+            error,
+        });
+    }
+};
+
+
+//search product
+export const searchProductController = async(req, res) => {
+    try {
+        const { keyword } = req.params;
+        const results = await productModel.find({
+            $or: [
+                { name: { $regex: keyword, $options: "i" } },
+                { description: { $regex: keyword, $options: "i" } },
+            ],
+            /*{The $or operator performs a logical OR operation on an array of one or more <expressions> and selects the documents that satisfy at least one of the <expressions>}*/
+        }).select("-photo");
+        res.json(results);
+    } catch (error) {
+        console.log(error);
+        res.status(400).send({
+            success: false,
+            message: "Error in search product API",
+            error,
         });
     }
 };
